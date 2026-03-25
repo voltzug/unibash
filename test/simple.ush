@@ -1,0 +1,3 @@
+echo "hello world"
+ls -l | grep txt
+cat file > output

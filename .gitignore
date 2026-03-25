@@ -1,0 +1,17 @@
+*.tmp
+*.log
+*.exe
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ANTLR generated files
+unibash-py/UnibashLexer.py
+unibash-py/UnibashParser.py
+unibash-py/UnibashParserListener.py
+unibash-py/UnibashParserVisitor.py
+*.tokens
+*.interp
