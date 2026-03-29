@@ -1,0 +1,262 @@
+
+# 1. Definicje hostow
+
+host webserver   = "192.168.1.10" via ssh port 22 user "admin" password "s3cret"
+host dbserver    = "192.168.1.20" via ssh port 22 key "/home/ops/.ssh/id_rsa"
+host router      = "10.0.0.1" via ssh port 22 user "root" password "toor"
+host legacy_sw   = "10.0.0.2" via telnet port 23
+host winserver   = "192.168.1.50" via ssh port 22 user "Administrator" password "P@ssw0rd"
+
+
+# 2. Zakresy i grupy
+
+range lab_machines = 192.168.1.100..192.168.1.200
+range dmz_servers  = 192.168.2.1..192.168.2.50
+range custom_hosts = ["10.0.0.10", "10.0.0.20", "10.0.0.30"]
+
+group production   = [webserver, dbserver, router]
+group all_servers  = [webserver, dbserver, winserver, lab_machines]
+
+# 3. Zmienne
+
+set backup_dir  = "/mnt/backups"
+set log_path    = "/var/log/syslog"
+set http_port   = 8080
+set api_url     = "https://api.monitoring.local/v1/health"
+
+# 4. Ping - diagnostyka sieci
+
+ping webserver
+ping webserver count 5 timeout 2
+ping range lab_machines
+ping range dmz_servers count 3
+
+# 5. Polaczenie interaktywne
+
+connect webserver
+connect dbserver
+
+# 6. Inspekcja systemu
+
+inspect webserver
+inspect webserver show os
+inspect webserver show cpu
+inspect webserver show memory
+inspect webserver show disk
+inspect webserver show network
+inspect range lab_machines show os
+
+# 7. Zarzadzanie procesami
+
+restart webserver
+restart range lab_machines
+
+restart process "nginx" on webserver
+stop process "nginx" on webserver
+start process "nginx" on webserver
+status process "nginx" on webserver
+
+restart process "mysqld" on dbserver
+status process "mysqld" on dbserver
+
+# 8. Operacje na plikach
+
+download "/var/log/syslog" from webserver to "./logs/"
+download log_path from dbserver to "./logs/"
+
+# Wysylanie na hosta
+upload "./configs/nginx.conf" to webserver path "/etc/nginx/"
+upload "./scripts/backup.sh" to dbserver path "/opt/scripts/"
+
+# Kopiowanie miedzy zdalnymi hostami (remote-remote)
+copy "/etc/nginx/nginx.conf" from webserver to dbserver path "/tmp/configs/"
+copy "/opt/data/dump.sql" from dbserver to winserver path "C:\\Backups\\"
+
+# 9. Konfiguracja IP
+
+set ip "192.168.1.55/24" on webserver interface "eth0"
+add ip "10.10.0.1/24" on webserver interface "eth1"
+set ip "192.168.1.60/24" on dbserver interface "ens192"
+
+# 10. Konfiguracja DHCP
+
+configure dhcp on router {
+    subnet "192.168.1.0/24"
+    range 192.168.1.100..192.168.1.200
+    gateway "192.168.1.1"
+    dns ["8.8.8.8", "8.8.4.4"]
+}
+
+configure dhcp on router {
+    subnet "192.168.2.0/24"
+    range 192.168.2.10..192.168.2.100
+    gateway "192.168.2.1"
+    dns ["1.1.1.1", "1.0.0.1"]
+}
+
+# 11. Konfiguracja DNS
+
+configure dns on router {
+    zone "company.local"
+    record A "web" "192.168.1.10"
+    record A "db" "192.168.1.20"
+    record A "mail" "192.168.1.30"
+    record CNAME "www" "web.company.local"
+    record CNAME "api" "web.company.local"
+    forwarders ["8.8.8.8", "8.8.4.4"]
+}
+
+# 12. Warunki - if / else if / else
+
+# Rozne akcje w zaleznosci od systemu operacyjnego
+if os webserver == "linux" {
+    restart process "nginx" on webserver
+} else if os webserver == "windows" {
+    restart process "w3svc" on webserver
+} else {
+    print "Nieznany system operacyjny"
+}
+
+# Sprawdzenie wersji i reakcja
+if os dbserver != "linux" {
+    print "Uwaga: serwer bazy danych nie jest na Linuxie!"
+}
+
+# 13. Petle - foreach z filtrowaniem
+
+# Restart wszystkich linuxowych hostow w zakresie
+foreach h in range lab_machines where os == "linux" {
+    restart h
+    inspect h show os
+}
+
+# Zbieranie logow tylko z windowsowych maszyn
+foreach srv in group all_servers where os == "windows" {
+    download "C:\\Windows\\System32\\winevt\\Logs\\System.evtx" from srv to "./win_logs/"
+}
+
+# Prosta iteracja bez filtru
+foreach node in range dmz_servers {
+    ping node count 2
+    inspect node show network
+}
+
+# 14. Zdalne wykonywanie: local -> remote (on)
+
+# Wykonaj operacje na zdalnym hoscie
+on webserver {
+    inspect webserver show cpu
+    inspect webserver show memory
+    restart process "nginx" on webserver
+}
+
+on dbserver {
+    status process "mysqld" on dbserver
+    download "/var/log/mysql/error.log" from dbserver to "/tmp/"
+}
+
+# 15. Zdalne wykonywanie: remote -> remote (via)
+
+# Z poziomu lokalnej maszyny, przez webserver wykonaj operacje na dbserver
+# Wynik wraca do maszyny lokalnej
+via webserver run {
+    ping dbserver count 3
+    inspect dbserver show os
+    download "/etc/hosts" from dbserver to "/tmp/"
+}
+
+# Lancuch: lokalna -> router -> legacy_sw
+via router run {
+    inspect legacy_sw show network
+    ping legacy_sw
+}
+
+# 16. Zapytania HTTP (curl)
+
+# Prosty GET
+http get "https://api.monitoring.local/v1/health"
+http get api_url
+
+# GET z zapisem odpowiedzi
+http get "https://releases.example.com/latest.tar.gz" save "./downloads/latest.tar.gz"
+
+# POST z naglowkami i body
+http post "https://api.monitoring.local/v1/alerts" {
+    header "Content-Type" "application/json"
+    header "Authorization" "Bearer eyJhbGciOi..."
+    body '{"severity":"critical","host":"webserver","message":"CPU > 95%"}'
+}
+
+# PUT - aktualizacja konfiguracji
+http put "https://api.monitoring.local/v1/config/thresholds" {
+    header "Content-Type" "application/json"
+    header "Authorization" "Bearer eyJhbGciOi..."
+    body '{"cpu_warn":80,"cpu_crit":95,"mem_warn":70,"mem_crit":90}'
+}
+
+# DELETE
+http delete "https://api.monitoring.local/v1/alerts/old" {
+    header "Authorization" "Bearer eyJhbGciOi..."
+}
+
+# PATCH
+http patch "https://api.monitoring.local/v1/hosts/webserver" {
+    header "Content-Type" "application/json"
+    body '{"status":"maintenance"}'
+}
+
+# 17. Surowe komendy systemowe (exec)
+
+# Pojedyncza komenda
+exec on webserver "systemctl status nginx"
+exec on dbserver "df -h"
+
+# Blok wielu komend
+exec on webserver {
+    "iptables -L -n"
+    "netstat -tulpn"
+    "uptime"
+    "free -m"
+}
+
+# Komendy windowsowe
+exec on winserver {
+    "Get-Process | Sort-Object CPU -Descending | Select-Object -First 10"
+    "Get-Service | Where-Object {$_.Status -eq 'Running'}"
+    "systeminfo | findstr /C:\"OS\""
+}
+
+# 18. Wypisywanie (print)
+
+print "=== Rozpoczynam audyt infrastruktury ==="
+print inspect webserver show os
+print inspect dbserver show memory
+print "=== Audyt zakonczony ==="
+
+# 19. Zlozony scenariusz - polaczenie wielu funkcji
+
+# Scenariusz: przygotowanie srodowiska przed wdrozeniem
+print "=== Pre-deployment check ==="
+
+foreach srv in group production {
+    inspect srv show cpu
+    inspect srv show memory
+    inspect srv show disk
+}
+
+if os webserver == "linux" {
+    stop process "nginx" on webserver
+    upload "./release/app-v2.tar.gz" to webserver path "/opt/releases/"
+    exec on webserver {
+        "tar -xzf /opt/releases/app-v2.tar.gz -C /opt/app/"
+        "chown -R www-data:www-data /opt/app/"
+    }
+    start process "nginx" on webserver
+}
+
+http post "https://api.monitoring.local/v1/deploy" {
+    header "Content-Type" "application/json"
+    body '{"version":"2.0.0","host":"webserver","status":"completed"}'
+}
+
+print "=== Deployment zakonczone ==="
