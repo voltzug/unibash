@@ -1,248 +1,257 @@
 parser grammar UnibashParser;
-
 options { tokenVocab=UnibashLexer; }
 
 // #0. Program structure
 program
-  : statement* EOF
-  ;
+    : sep* (statement (sep+ statement)*)? sep* EOF
+    ;
 
+sep
+    : SEMI NEWLINE
+    | NEWLINE
+    | SEMI
+    ;
+
+block
+    : LBRACE sep* (statement (sep+ statement)*)? sep* RBRACE
+    ;
+
+// #0. Statements
 statement
-  : host_decl terminator*
-  | range_decl terminator*
-  | group_decl terminator*
-  | set_stmt terminator*
-  | ping_stmt terminator*
-  | connect_stmt terminator*
-  | inspect_stmt terminator*
-  | process_stmt terminator*
-  | download_stmt terminator*
-  | upload_stmt terminator*
-  | copy_stmt terminator*
-  | ip_config_stmt terminator*
-  | dhcp_config terminator*
-  | dns_config terminator*
-  | http_stmt terminator*
-  | exec_stmt terminator*
-  | print_stmt terminator*
-  | if_stmt
-  | foreach_stmt
-  | on_block
-  | via_block
-  | terminator+
-  ;
-
-terminator
-  : SEMI
-  | NEWLINE
-  ;
+    : host_decl
+    | range_decl
+    | group_decl
+    | set_stmt
+    | ping_stmt
+    | connect_stmt
+    | inspect_stmt
+    | process_stmt
+    | download_stmt
+    | upload_stmt
+    | copy_stmt
+    | ip_config_stmt
+    | dhcp_config
+    | dns_config
+    | http_stmt
+    | exec_stmt
+    | print_stmt
+    | if_stmt
+    | foreach_stmt
+    | on_block
+    | via_block
+    ;
 
 // #1. Host definitions
 host_decl
-  : HOST name ASSIGN value host_option*
-  ;
+    : HOST IDENT ASSIGN (addr | string_literal) host_option*
+    ;
 
 host_option
-  : VIA value
-  | PORT NUMBER
-  | USER value
-  | PASSWORD value
-  | KEY value
-  ;
+    : VIA (protocol | name)
+    | PORT NUMBER
+    | USER name
+    | PASSWORD name
+    | KEY name
+    ;
+
+protocol
+    : SSH
+    | TELNET
+    ;
 
 // #2. Ranges and groups
 range_decl
-  : RANGE name ASSIGN range_expr
-  ;
+    : RANGE IDENT ASSIGN range_expr
+    ;
 
 range_expr
-  : value DOTDOT value
-  | list_literal
-  ;
+    : value DOTDOT value
+    | list_literal
+    ;
 
 group_decl
-  : GROUP name ASSIGN list_literal
-  ;
+    : GROUP IDENT ASSIGN list_literal
+    ;
 
 // #3. Variables
 set_stmt
-  : SET name ASSIGN value
-  ;
+    : SET IDENT ASSIGN value
+    ;
 
 // #4. Ping diagnostics
 ping_stmt
-  : PING target (COUNT NUMBER)? (TIMEOUT value)?
-  ;
+    : PING target (COUNT NUMBER)? (TIMEOUT (IDENT | NUMBER))?
+    ;
 
 // #5. Interactive connect
 connect_stmt
-  : CONNECT target
-  ;
+    : CONNECT target
+    ;
 
 // #6. System inspection
 inspect_stmt
-  : INSPECT target (SHOW value)?
-  ;
+    : INSPECT target (SHOW inspect_category)?
+    ;
+
+inspect_category
+    : OS
+    | MEMORY
+    | DISK
+    | CPU
+    | NETWORK
+    | value // ? too exhausive
+    ;
 
 // #7. Process management
 process_stmt
-  : PROCESS (RESTART | STOP | START | STATUS) (PROCESS value)? (ON target)?
-  | (RESTART | STOP | START | STATUS) (PROCESS value)? (ON target)?
-  ;
+    : (RESTART | STOP | START | STATUS) (PROCESS value)? (ON target)?
+    ;
 
 // #8. File operations
 download_stmt
-  : DOWNLOAD value FROM target TO value
-  ;
+    : DOWNLOAD name FROM target TO name
+    ;
 
 upload_stmt
-  : UPLOAD value TO target PATH value
-  ;
+    : UPLOAD name TO target PATH name
+    ;
 
 copy_stmt
-  : COPY value FROM target TO target PATH value
-  ;
+    : COPY name FROM target TO target PATH name
+    ;
 
 // #9. IP configuration
 ip_config_stmt
-  : (SET | ADD) IP value ON target INTERFACE value
-  ;
+    : (SET | ADD) IP value ON target INTERFACE value
+    ;
 
 // #10. DHCP configuration
 dhcp_config
-  : CONFIGURE DHCP ON target block
-  ;
+    : CONFIGURE DHCP ON target dhcp_block
+    ;
+
+dhcp_block
+    : LBRACE sep* dhcp_entry (sep+ dhcp_entry)* sep* RBRACE
+    ;
 
 dhcp_entry
-  : SUBNET value
-  | RANGE range_expr
-  | GATEWAY value
-  | DNS list_literal
-  ;
+    : SUBNET value
+    | RANGE range_expr
+    | GATEWAY value
+    | DNS list_literal
+    ;
 
 // #11. DNS configuration
 dns_config
-  : CONFIGURE DNS ON target block
-  ;
+    : CONFIGURE DNS ON target dns_block
+    ;
+
+dns_block
+    : LBRACE sep* dns_entry (sep+ dns_entry)* sep* RBRACE
+    ;
 
 dns_entry
-  : ZONE value
-  | RECORD value value value?
-  | FORWARDERS list_literal
-  ;
+    : ZONE value
+    | RECORD value value value?
+    | FORWARDERS list_literal
+    ;
 
 // #12. Conditions (if / else)
 if_stmt
-  : IF condition block (ELSE IF condition block)* (ELSE block)?
-  ;
+    : IF condition block (ELSE IF condition block)* (ELSE block)?
+    ;
 
 // #13. Loops (foreach)
 foreach_stmt
-  : FOREACH name IN source (WHERE condition)? block
-  ;
+    : FOREACH IDENT IN target (WHERE condition)? block
+    ;
 
 // #14. Remote execution (on)
 on_block
-  : ON target block
-  ;
+    : ON target block
+    ;
 
 // #15. Remote execution (via)
 via_block
-  : VIA target RUN block
-  ;
+    : VIA target RUN block
+    ;
 
 // #16. HTTP requests
 http_stmt
-  : HTTP http_method value (SAVE value)? http_block?
-  ;
+    : HTTP http_method value (SAVE value)? http_block?
+    ;
 
 http_method
-  : GET
-  | POST
-  | PUT
-  | DELETE
-  | PATCH
-  | HEAD
-  ;
+    : GET
+    | POST
+    | PUT
+    | DELETE
+    | PATCH
+    | HEAD
+    ;
 
 http_block
-  : LBRACE (terminator* http_entry terminator*)* RBRACE
-  ;
+    : LBRACE sep* http_entry (sep+ http_entry)* sep* RBRACE
+    ;
 
 http_entry
-  : HEADER value value
-  | BODY value
-  ;
+    : HEADER value value
+    | BODY value
+    ;
 
 // #17. Exec blocks
 exec_stmt
-  : EXEC ON target (value | exec_block)
-  ;
+    : EXEC ON target (value | exec_block)
+    ;
 
 exec_block
-  : LBRACE (terminator* exec_line terminator*)* RBRACE
-  ;
+    : LBRACE sep* exec_line (sep+ exec_line)* sep* RBRACE
+    ;
 
-exec_line
-  : value+
-  ;
+exec_line : string_literal ;
 
 // #18. Printing
 print_stmt
-  : PRINT (inspect_stmt | value+)
-  ;
+    : PRINT (inspect_stmt | value+)
+    ;
 
-// #19. Generic block body
-block
-  : LBRACE block_item* RBRACE
-  ;
-
-block_item
-  : dhcp_entry terminator*
-  | dns_entry terminator*
-  | statement
-  ;
-
-// #0. Conditions and operands
+// #19. Conditions and operands
 condition
-  : operand (EQ | NEQ) operand
-  ;
+    : operand (EQ | NEQ) operand
+    ;
 
 operand
-  : OS target?
-  | value
-  ;
+    : OS target
+    | value
+    ;
 
 // #0. Common refs
-source
-  : RANGE name
-  | GROUP name
-  | name
-  ;
+target
+    : RANGE IDENT
+    | GROUP IDENT
+    | IDENT
+    ;
 
 name
-  : WORD
-  ;
-
-target
-  : RANGE name
-  | GROUP name
-  | name
-  ;
-
+    : IDENT
+    | string_literal
+    ;
+addr
+    : IP4ADDR
+    | IP6ADDR
+    ;
 value
-  : WORD
-  | NUMBER
-  | IPADDR
-  | string_literal
-  ;
+    : NUMBER
+    | addr
+    | name
+    ;
 
 string_literal
-  : SQUOTE_STRING
-  | DQUOTE_STRING
-  ;
+    : SQUOTE_STRING
+    | DQUOTE_STRING
+    ;
 
 // #0. Lists
 list_literal
-  : LBRACK (value (COMMA value)*)? RBRACK
-  ;
+    : LBRACK (value (COMMA value)*)? RBRACK
+    ;

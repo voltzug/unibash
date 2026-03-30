@@ -1,4 +1,4 @@
-host server1 = '192.168.1.100' via 'ssh' port 22 user 'root' password 'toor' key '/path/to/key';
+host server1 = 192.168.1.100 via ssh port 22 user 'root' password 'toor' key '/path/to/key';
 host server2 = '192.168.1.101' via 'telnet' port 23 user 'admin';
 
 range myrange = 1..10;
@@ -11,10 +11,10 @@ if os server1 == 'linux' {
   foreach s in myservers where os s == 'linux' {
     ping s count 5 timeout timeout_s;
     exec on s {
-      sudo apt update;
-      sudo apt upgrade -y;
+      "sudo apt update && sudo apt upgrade -y;"
+      "echo 'Yo'"
     }
-    process start process 'nginx' on s;
+    start process 'nginx' on s;
   }
 } else {
   connect server2;

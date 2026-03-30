@@ -8,20 +8,22 @@ WS
     : [ \t]+ -> skip
     ;
 COMMENT
-    : '#' ~[\r\n]* -> skip
+    : '#' ~[\r\n]* -> channel(HIDDEN)
     ;
 
 // #1. host def
 HOST : 'host';
-VIA : 'via';
+VIA  : 'via';
+SSH  : 'ssh';
+TELNET : 'telnet';
 PORT : 'port';
 USER : 'user';
 PASSWORD : 'password' | 'pass';
-KEY : 'key';
+KEY  : 'key';
 
 // #2. ranges and groups
-RANGE : 'range';
-GROUP : 'group';
+RANGE  : 'range';
+GROUP  : 'group';
 LBRACK : '[';
 RBRACK : ']';
 COMMA  : ',';
@@ -42,6 +44,11 @@ CONNECT : 'connect';
 // #6. inspect
 INSPECT : 'inspect';
 SHOW    : 'show';
+OS      : 'os';
+MEMORY  : 'memory';
+DISK    : 'disk';
+CPU     : 'cpu';
+NETWORK : 'network';
 
 // #7. process management
 RESTART : 'restart';
@@ -81,7 +88,6 @@ IF  : 'if';
 ELSE: 'else';
 EQ  : '==';
 NEQ : '!=';
-OS  : 'os';
 
 // #13. foreach
 FOREACH : 'foreach';
@@ -122,23 +128,32 @@ REDIR_IN  : '<';
 
 // #0. strings and literals
 SQUOTE_STRING
-    : '\'' ( '\'\'' | ~'\'' )* '\''
+    : '\'' ( '\'\'' | ~['\r\n] )* '\''
     ;
 DQUOTE_STRING
-    : '"' ( '\\"' | '\\' . | ~["\\] )* '"'
+    : '"' ( '\\"' | '\\' . | ~["\\\r\n] )* '"'
     ;
-IPADDR
-    : IPADDR_DIGIT '.' IPADDR_DIGIT '.' IPADDR_DIGIT '.' IPADDR_DIGIT
+IP4ADDR
+    : IP4ADDR_DIGIT '.' IP4ADDR_DIGIT '.' IP4ADDR_DIGIT '.' IP4ADDR_DIGIT
     ;
-fragment IPADDR_DIGIT
-    : DIGIT DIGIT? DIGIT?
+fragment IP4ADDR_DIGIT
+    : DIGIT (DIGIT)? (DIGIT)?
+    ;
+IP6ADDR
+    : HEXDIGIT+ ':' HEXDIGIT+ (':' HEXDIGIT+)*
     ;
 NUMBER
     : DIGIT+
     ;
+fragment HEXDIGIT
+    : [0-9a-fA-F]
+    ;
 fragment DIGIT
     : [0-9]
     ;
-WORD
-    : ~[ \t\r\n;|<>`"'=,{}[\].]+
+IDENT
+    : LETTER (LETTER | DIGIT)*
+    ;
+fragment LETTER
+    : [a-zA-Z_]
     ;
