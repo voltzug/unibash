@@ -9,6 +9,7 @@ __pycache__/
 *.pyd
 
 # ANTLR generated files
+.antlr/
 unibash-py/UnibashLexer.py
 unibash-py/UnibashParser.py
 unibash-py/UnibashParserListener.py

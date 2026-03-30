@@ -27,3 +27,7 @@ For example:
 ```sh
 ./tools/run.sh test/simple.ush
 ```
+
+> [!TIP]
+> To visualize the parse tree use _ANTLR_'s TestRig with the `-gui` flag:
+> `grun unibash-py/gen/UnibashParser program -gui test/simple.ush`.

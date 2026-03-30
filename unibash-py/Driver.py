@@ -13,12 +13,12 @@ def main(argv):
     token_stream = CommonTokenStream(lexer)
     parser = UnibashParser(token_stream)
 
-    tree = parser.program()
+    context = parser.program()
     if parser.getNumberOfSyntaxErrors() > 0:
-        print("syntax errors")
+        print("!! syntax errors")
         return 1
 
-    print(tree.toStringTree(recog=parser))
+    print(context.toStringTree(recog=parser))
     return 0
 
 
