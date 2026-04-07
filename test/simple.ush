@@ -1,3 +1,46 @@
-echo "hello world"
-ls -l | grep txt
-cat file > output
+host server1 = 192.168.1.100 via ssh port 22 user 'root' password 'toor' key '/path/to/key';
+host server2 = '192.168.1.101' via 'telnet' port 23 user 'admin';
+
+range myrange = 1..10;
+
+group myservers = [server1, server2];
+
+set timeout_s = 30;
+
+if os server1 == 'linux' {
+  foreach s in myservers where os s == 'linux' {
+    ping s count 5 timeout timeout_s;
+    exec on s {
+      "sudo apt update && sudo apt upgrade -y;"
+      "echo 'Yo'"
+    }
+    start process 'nginx' on s;
+  }
+} else {
+  connect server2;
+}
+
+via server1 run {
+  upload '/local/file.txt' to server1 path '/remote/file.txt';
+  download '/remote/log.txt' from server1 to '/local/log.txt';
+}
+
+configure dhcp on server1 {
+  subnet '192.168.1.0/24';
+  range 100..200;
+  gateway '192.168.1.1';
+  dns ['8.8.8.8', '8.8.4.4'];
+}
+
+configure dns on server2 {
+  zone 'example.com';
+  record 'www' 'A' '192.168.1.100';
+  forwarders ['1.1.1.1'];
+}
+
+http get 'http://api.example.com/data' save '/tmp/response.json' {
+  header 'Authorization' 'Bearer token123';
+  body '{"query": "test"}';
+}
+
+print inspect server1 show 'cpu';
