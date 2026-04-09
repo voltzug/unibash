@@ -1,0 +1,34 @@
+# TODO
+
+- [ ] Define MVP command set for the first working CLI (core subset of DSL).
+- [ ] Decide on error handling strategy (fail-fast vs. collect errors).
+- [ ] Add minimal logging conventions (levels, format, output).
+
+## runtime
+- [ ] Implement runtime context (hosts, ranges, groups, variables).
+- [ ] Add resolution helpers for names, ranges, and groups.
+- [ ] Create validation hooks (duplicate names, missing references).
+
+## visitor
+- [ ] Create base visitor class that wires to runtime context.
+- [ ] Implement handlers for declarations (host/range/group/set).
+- [ ] Implement core actions (ping/connect/inspect/process/ping/file ops).
+
+## cli
+- [ ] Build REPL loop with multiline block buffering.
+- [ ] Implement script runner for `.ush` files.
+- [ ] Add consistent exit codes and error reporting.
+
+## executor
+- [x] Define distinct, Liskov-compliant interfaces for each domain (e.g., `IHttpExecutor`, `IProcessExecutor`, `IFileExecutor`, `ISystemExecutor`). Avoid a single abstract "god" interface.
+- [ ] Create Pure Python (platform-agnostic) executors for tasks that don't depend on the remote OS (e.g., HTTP, Ping).
+- [ ] Create OS-bound executors for tasks that require OS knowledge (e.g., process management, system inspection).
+- [ ] Implement an Executor Factory / Switcher to dynamically select the correct OS-bound implementation (Linux vs Windows) based on host configuration.
+- [ ] OS-bound executors MUST wrap the Transport layer (e.g., SSH connection). The executor handles the OS logic and passes commands to the transport for execution.
+- [ ] Provide a no-op/mock executor for testing and early development.
+- [ ] Focus initially on Linux implementations for OS-bound executors.
+
+## tests
+- [ ] Add unit tests for parsing sample `.ush` files.
+- [ ] Add runtime resolution tests (groups/ranges/vars).
+- [ ] Add CLI tests for REPL and script mode.

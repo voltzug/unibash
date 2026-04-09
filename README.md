@@ -1,5 +1,9 @@
 # Unibash
 
+- Platform-agnostic CLI for Unibash DSL (Python 3 runtime).
+- Two modes: interactive TTY (line-by-line) and `.ush` script execution.
+- ANTLR-based grammar with a visitor-driven runtime and executor layer.
+
 Uses ANTLR4 and Python3.
 
 ## Setup
