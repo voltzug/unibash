@@ -5,9 +5,9 @@
 - [ ] Add minimal logging conventions (levels, format, output).
 
 ## runtime
-- [ ] Implement runtime context (hosts, ranges, groups, variables).
-- [ ] Add resolution helpers for names, ranges, and groups.
-- [ ] Create validation hooks (duplicate names, missing references).
+- [x] Implement runtime context (hosts, ranges, groups, variables).
+- [x] Add resolution helpers for names, ranges, and groups.
+- [x] Create validation hooks (duplicate names, missing references).
 
 ## visitor
 - [ ] Create base visitor class that wires to runtime context.

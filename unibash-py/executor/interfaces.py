@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional
 
+from runtime.models import Host
+
 
 # --- Base ---
 class IExecutor(ABC):
@@ -33,7 +35,7 @@ class IProgressReporter(ABC):
 
 class IRollbackCapable(ABC):
     @abstractmethod
-    def rollback(self, target: Any) -> bool:
+    def rollback(self, target: Host) -> bool:
         """Undo failed operations."""
         pass
 
@@ -84,77 +86,77 @@ class IHttpExecutor(IExecutor):
 
 class INetworkDiagnosticExecutor(IExecutor):
     @abstractmethod
-    def ping(self, target: Any, count: int = 4, timeout: int = 5) -> Any:
+    def ping(self, target: Host, count: int = 4, timeout: int = 5) -> Any:
         pass
 
 
 class IInteractiveExecutor(IExecutor):
     @abstractmethod
-    def connect(self, target: Any) -> None:
+    def connect(self, target: Host) -> None:
         pass
 
 
 # --- OS-Backed Interfaces (Need Switcher) ---
 class ISystemInspectExecutor(IExecutor):
     @abstractmethod
-    def inspect(self, target: Any, category: Optional[str] = None) -> Any:
+    def inspect(self, target: Host, category: Optional[str] = None) -> Any:
         """category: os, cpu, memory, disk, network, etc."""
         pass
 
 
 class IProcessExecutor(IExecutor):
     @abstractmethod
-    def start(self, process_name: str, target: Any) -> Any:
+    def start(self, process_name: str, target: Host) -> Any:
         pass
 
     @abstractmethod
-    def stop(self, process_name: str, target: Any) -> Any:
+    def stop(self, process_name: str, target: Host) -> Any:
         pass
 
     @abstractmethod
-    def restart(self, process_name: str, target: Any) -> Any:
+    def restart(self, process_name: str, target: Host) -> Any:
         pass
 
     @abstractmethod
-    def status(self, process_name: str, target: Any) -> Any:
+    def status(self, process_name: str, target: Host) -> Any:
         pass
 
 
 class IFileTransferExecutor(IExecutor):
     @abstractmethod
-    def download(self, remote_path: str, local_path: str, target: Any) -> Any:
+    def download(self, remote_path: str, local_path: str, target: Host) -> Any:
         pass
 
     @abstractmethod
-    def upload(self, local_path: str, remote_path: str, target: Any) -> Any:
+    def upload(self, local_path: str, remote_path: str, target: Host) -> Any:
         pass
 
     @abstractmethod
     def copy(
-        self, src_path: str, src_target: Any, dest_path: str, dest_target: Any
+        self, src_path: str, src_target: Host, dest_path: str, dest_target: Host
     ) -> Any:
         pass
 
 
 class INetworkConfigExecutor(IExecutor):
     @abstractmethod
-    def set_ip(self, ip: str, interface: str, target: Any) -> Any:
+    def set_ip(self, ip: str, interface: str, target: Host) -> Any:
         pass
 
     @abstractmethod
-    def add_ip(self, ip: str, interface: str, target: Any) -> Any:
+    def add_ip(self, ip: str, interface: str, target: Host) -> Any:
         pass
 
     @abstractmethod
-    def configure_dhcp(self, config_block: Dict[str, Any], target: Any) -> Any:
+    def configure_dhcp(self, config_block: Dict[str, Any], target: Host) -> Any:
         pass
 
     @abstractmethod
-    def configure_dns(self, config_block: Dict[str, Any], target: Any) -> Any:
+    def configure_dns(self, config_block: Dict[str, Any], target: Host) -> Any:
         pass
 
 
 class IRawCommandExecutor(IExecutor):
     @abstractmethod
-    def execute(self, command_list: List[str], target: Any) -> Any:
+    def execute(self, command_list: List[str], target: Host) -> Any:
         pass
