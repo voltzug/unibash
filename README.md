@@ -20,18 +20,15 @@ will generate the ANTLR parser and lexer files in `unibash-py/gen`.
 
 ## Run
 
-To run the interpreter on an input file, use the run script:
-
 ```sh
-./tools/run.sh <input-file>
+python3 unibash-py/Driver.py
+# or
+python3 unibash-py/Driver.py -m parrot test/simple.ush
 ```
 
-For example:
+## Test
 
 ```sh
-./tools/run.sh test/simple.ush
+cd unibash-py
+python3 -m unittest discover tests
 ```
-
-> [!TIP]
-> To visualize the parse tree use _ANTLR_'s TestRig with the `-gui` flag:
-> `grun unibash-py/gen/UnibashParser program -gui test/simple.ush`.
