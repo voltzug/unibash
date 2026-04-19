@@ -13,7 +13,7 @@ from executor.interfaces import (
 )
 from runtime.models import Host
 
-_NAME = "{_NAME}"
+_NAME = "[PARROT]"
 
 
 class ParrotExecutor(

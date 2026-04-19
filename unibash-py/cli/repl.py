@@ -24,9 +24,9 @@ class REPLErrorListener(ErrorListener):
 
 
 class UnibashREPL:
-    def __init__(self):
+    def __init__(self, executor=None):
         self.context = RuntimeContext()
-        self.evaluator = UnibashEvaluator(self.context)
+        self.evaluator = UnibashEvaluator(self.context, executor)
 
     def run(self):
         print("Unibash REPL (type 'exit' or 'quit' to exit)")
