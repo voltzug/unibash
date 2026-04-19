@@ -10,12 +10,12 @@
 - [x] Create validation hooks (duplicate names, missing references).
 
 ## visitor
-- [ ] Create base visitor class that wires to runtime context.
-- [ ] Implement handlers for declarations (host/range/group/set).
-- [ ] Implement core actions (ping/connect/inspect/process/ping/file ops).
+- [x] Create base visitor class that wires to runtime context.
+- [x] Implement handlers for declarations (host/range/group/set).
+- [x] Implement core actions (ping/connect/inspect/process/ping/file ops).
 
 ## cli
-- [ ] Build REPL loop with multiline block buffering.
+- [x] Build REPL loop with multiline block buffering.
 - [ ] Implement script runner for `.ush` files.
 - [ ] Add consistent exit codes and error reporting.
 
@@ -25,10 +25,11 @@
 - [ ] Create OS-bound executors for tasks that require OS knowledge (e.g., process management, system inspection).
 - [ ] Implement an Executor Factory / Switcher to dynamically select the correct OS-bound implementation (Linux vs Windows) based on host configuration.
 - [ ] OS-bound executors MUST wrap the Transport layer (e.g., SSH connection). The executor handles the OS logic and passes commands to the transport for execution.
-- [ ] Provide a no-op/mock executor for testing and early development.
+- [x] Provide a no-op/mock executor for testing and early development.
 - [ ] Focus initially on Linux implementations for OS-bound executors.
 
 ## tests
 - [ ] Add unit tests for parsing sample `.ush` files.
-- [ ] Add runtime resolution tests (groups/ranges/vars).
-- [ ] Add CLI tests for REPL and script mode.
+- [x] Add runtime resolution tests (groups/ranges/vars).
+- [x] Add CLI tests for REPL mode.
+- [ ] Add CLI tests for script mode.

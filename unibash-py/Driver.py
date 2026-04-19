@@ -1,7 +1,14 @@
 import sys
-from antlr4 import FileStream, CommonTokenStream
+
+from antlr4 import CommonTokenStream, FileStream
+from cli.repl import UnibashREPL
 from gen.UnibashLexer import UnibashLexer
 from gen.UnibashParser import UnibashParser
+
+if len(sys.argv) == 1:
+    UnibashREPL().run()
+    sys.exit(0)
+
 
 def main(argv):
     if len(argv) < 2:

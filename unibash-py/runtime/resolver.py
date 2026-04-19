@@ -1,5 +1,5 @@
 import ipaddress
-from typing import List, Set, Union
+from typing import List, Set
 
 from .context import RuntimeContext
 from .exceptions import InvalidTargetError, MissingReferenceError
