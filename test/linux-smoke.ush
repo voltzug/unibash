@@ -1,0 +1,27 @@
+host dev1 = "dev1" via ssh port 2222 user "test" key "/keys/id_ed25519"
+host dev2 = "dev2" via ssh port 2222 user "test" password "test2"
+
+group dev = [dev1, dev2]
+
+ping dev1
+inspect dev1 show os
+ping group dev
+
+upload "./tests/linux.md" to dev1 path "/tmp/"
+download "/tmp/linux.md" from dev1 to "./tests/rick.rolled.u"
+
+exec on dev1 "uname -a"
+exec on dev2 "ls -la /tmp"
+
+http get "https://example.com"
+http post "https://httpbin.org/post" {
+    header "Content-Type" "application/json"
+    body "{\"msg\":\"hello\"}"
+}
+
+foreach h in group dev where os == "linux" {
+    exec on h {
+        "echo linux-multi"
+        "shutdown -h now"
+    }
+}
