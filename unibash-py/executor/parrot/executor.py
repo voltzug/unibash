@@ -35,52 +35,86 @@ class ParrotExecutor(
     def _fmt_target(self, target: Host) -> str:
         return f"{target.name}({target.address})"
 
+    def _guess_os(self, target: Host) -> str:
+        name = f"{target.name}".lower()
+        if "win" in name or "windows" in name:
+            return "windows"
+        return "linux"
+
     # --- IConsoleExecutor ---
     def print(self, data: Any) -> None:
         print(f"{_NAME} PRINT: {data}")
 
     # --- IHttpExecutor ---
-    def get(self, url: str, headers: Optional[Dict[str, str]] = None) -> Any:
-        print(f"{_NAME} HTTP GET: {url} | Headers: {headers}")
-        return "200 OK"
+    def get(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        return f"HTTP GET {url} | headers={headers}"
+
+    def head(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        return f"HTTP HEAD {url} | headers={headers}"
 
     def post(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
-        print(f"{_NAME} HTTP POST: {url} | Headers: {headers} | Body: {body}")
-        return "201 Created"
+        return f"HTTP POST {url} | headers={headers} | body={body}"
 
     def put(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
-        print(f"{_NAME} HTTP PUT: {url} | Headers: {headers} | Body: {body}")
-        return "200 OK"
+        return f"HTTP PUT {url} | headers={headers} | body={body}"
 
-    def delete(self, url: str, headers: Optional[Dict[str, str]] = None) -> Any:
-        print(f"{_NAME} HTTP DELETE: {url} | Headers: {headers}")
-        return "204 No Content"
+    def delete(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        return f"HTTP DELETE {url} | headers={headers}"
 
     def patch(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
-        print(f"{_NAME} HTTP PATCH: {url} | Headers: {headers} | Body: {body}")
-        return "200 OK"
+        return f"HTTP PATCH {url} | headers={headers} | body={body}"
 
     # --- INetworkDiagnosticExecutor ---
     def ping(self, target: Host, count: int = 4, timeout: int = 5) -> Any:
         print(
             f"{_NAME} PING {self._fmt_target(target)} | count={count} timeout={timeout}"
         )
-        return "ping success"
+        return None
 
     # --- IInteractiveExecutor ---
     def connect(self, target: Host) -> None:
@@ -88,40 +122,41 @@ class ParrotExecutor(
 
     # --- ISystemInspectExecutor ---
     def inspect(self, target: Host, category: Optional[str] = None) -> Any:
-        print(f"{_NAME} INSPECT {self._fmt_target(target)} | category={category}")
-        return f"inspect data for {category}"
+        if category and category.lower() == "os":
+            return self._guess_os(target)
+        if category:
+            return f"{category} ok"
+        return "ok"
 
     # --- IProcessExecutor ---
     def start(self, process_name: str, target: Host) -> Any:
         print(f"{_NAME} PROCESS START '{process_name}' on {self._fmt_target(target)}")
-        return "started"
+        return None
 
     def stop(self, process_name: str, target: Host) -> Any:
         print(f"{_NAME} PROCESS STOP '{process_name}' on {self._fmt_target(target)}")
-        return "stopped"
+        return None
 
     def restart(self, process_name: str, target: Host) -> Any:
-        print(
-            f"{_NAME} PROCESS RESTART '{process_name}' on {self._fmt_target(target)}"
-        )
-        return "restarted"
+        print(f"{_NAME} PROCESS RESTART '{process_name}' on {self._fmt_target(target)}")
+        return None
 
     def status(self, process_name: str, target: Host) -> Any:
         print(f"{_NAME} PROCESS STATUS '{process_name}' on {self._fmt_target(target)}")
-        return "running"
+        return None
 
     # --- IFileTransferExecutor ---
     def download(self, remote_path: str, local_path: str, target: Host) -> Any:
         print(
             f"{_NAME} DOWNLOAD {remote_path} -> {local_path} from {self._fmt_target(target)}"
         )
-        return "downloaded"
+        return None
 
     def upload(self, local_path: str, remote_path: str, target: Host) -> Any:
         print(
             f"{_NAME} UPLOAD {local_path} -> {remote_path} to {self._fmt_target(target)}"
         )
-        return "uploaded"
+        return None
 
     def copy(
         self, src_path: str, src_target: Host, dest_path: str, dest_target: Host
@@ -130,31 +165,31 @@ class ParrotExecutor(
             f"{_NAME} COPY {src_path} (from {self._fmt_target(src_target)}) -> "
             f"{dest_path} (to {self._fmt_target(dest_target)})"
         )
-        return "copied"
+        return None
 
     # --- INetworkConfigExecutor ---
     def set_ip(self, ip: str, interface: str, target: Host) -> Any:
         print(f"{_NAME} SET IP {ip} on {interface} at {self._fmt_target(target)}")
-        return "ip set"
+        return None
 
     def add_ip(self, ip: str, interface: str, target: Host) -> Any:
         print(f"{_NAME} ADD IP {ip} on {interface} at {self._fmt_target(target)}")
-        return "ip added"
+        return None
 
     def configure_dhcp(self, config_block: Dict[str, Any], target: Host) -> Any:
         print(
             f"{_NAME} CONFIGURE DHCP on {self._fmt_target(target)} | config={config_block}"
         )
-        return "dhcp configured"
+        return None
 
     def configure_dns(self, config_block: Dict[str, Any], target: Host) -> Any:
         print(
             f"{_NAME} CONFIGURE DNS on {self._fmt_target(target)} | config={config_block}"
         )
-        return "dns configured"
+        return None
 
     # --- IRawCommandExecutor ---
     def execute(self, command_list: List[str], target: Host) -> Any:
         cmds = ", ".join(command_list)
         print(f"{_NAME} EXECUTE [{cmds}] on {self._fmt_target(target)}")
-        return "executed"
+        return None

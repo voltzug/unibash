@@ -49,7 +49,25 @@ class IConsoleExecutor(IExecutor):
 
 class IHttpExecutor(IExecutor):
     @abstractmethod
-    def get(self, url: str, headers: Optional[Dict[str, str]] = None) -> Any:
+    def get(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        pass
+
+    @abstractmethod
+    def head(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
         pass
 
     @abstractmethod
@@ -58,6 +76,9 @@ class IHttpExecutor(IExecutor):
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
         pass
 
@@ -67,11 +88,21 @@ class IHttpExecutor(IExecutor):
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
         pass
 
     @abstractmethod
-    def delete(self, url: str, headers: Optional[Dict[str, str]] = None) -> Any:
+    def delete(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
         pass
 
     @abstractmethod
@@ -80,6 +111,9 @@ class IHttpExecutor(IExecutor):
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
         pass
 

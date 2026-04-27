@@ -29,6 +29,27 @@ class TargetResolver:
         resolved_hosts = self._resolve_recursive(target_identifier, visited)
         return self._deduplicate(resolved_hosts)
 
+    def _expand_range_entry(self, entry: str, range_name: str) -> List[str]:
+        if ".." not in entry:
+            return [entry]
+
+        start_str, end_str = entry.split("..", 1)
+        try:
+            start_ip = ipaddress.ip_address(start_str)
+            end_ip = ipaddress.ip_address(end_str)
+        except ValueError:
+            return [entry]
+
+        if start_ip.version != end_ip.version:
+            raise InvalidTargetError(range_name, "Range IP versions do not match.")
+
+        start_int = int(start_ip)
+        end_int = int(end_ip)
+        if start_int > end_int:
+            start_int, end_int = end_int, start_int
+
+        return [str(ipaddress.ip_address(i)) for i in range(start_int, end_int + 1)]
+
     def _resolve_recursive(self, identifier: str, visited: Set[str]) -> List[Host]:
         # Prevent infinite loops in self-referencing groups or variables
         if identifier in visited:
@@ -54,8 +75,10 @@ class TargetResolver:
             return [entity]
 
         elif isinstance(entity, Range):
-            # Convert range IPs to generic Host objects
-            return [Host(name=ip, address=ip) for ip in entity.ips]
+            expanded_ips: List[str] = []
+            for ip_entry in entity.ips:
+                expanded_ips.extend(self._expand_range_entry(ip_entry, entity.name))
+            return [Host(name=ip, address=ip) for ip in expanded_ips]
 
         elif isinstance(entity, Group):
             # Recursively resolve all members of the group

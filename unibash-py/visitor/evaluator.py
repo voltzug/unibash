@@ -4,7 +4,7 @@ from executor.base.executor import BaseExecutor
 from gen.UnibashParser import UnibashParser
 from gen.UnibashParserVisitor import UnibashParserVisitor
 from runtime.context import RuntimeContext
-from runtime.models import Group, Host, Range
+from runtime.models import Group, Host, Protocol, Range
 from runtime.resolver import TargetResolver
 
 
@@ -78,9 +78,13 @@ class UnibashEvaluator(UnibashParserVisitor):
         for opt_ctx in ctx.host_option():
             if opt_ctx.VIA():
                 if opt_ctx.protocol():
-                    host.protocol = opt_ctx.protocol().getText()
+                    proto_text = opt_ctx.protocol().getText().lower()
                 else:
-                    host.protocol = self.visit(opt_ctx.name())
+                    proto_text = str(self.visit(opt_ctx.name())).lower()
+                try:
+                    host.protocol = Protocol(proto_text)
+                except ValueError:
+                    host.protocol = proto_text
             elif opt_ctx.PORT():
                 host.port = int(opt_ctx.NUMBER().getText())
             elif opt_ctx.USER():
@@ -132,6 +136,34 @@ class UnibashEvaluator(UnibashParserVisitor):
         target_name = target_ctx.IDENT().getText()
         return self.resolver.resolve(target_name)
 
+    def _eval_block(self, block_ctx):
+        results = []
+        for stmt in block_ctx.statement():
+            results.append(self.visit(stmt))
+        return results
+
+    def _eval_condition(self, left, right, is_eq: bool) -> bool:
+        def normalize(val):
+            if isinstance(val, str):
+                return val.strip().casefold()
+            if isinstance(val, list):
+                return [normalize(item) for item in val]
+            return val
+
+        left_cmp = normalize(left)
+        right_cmp = normalize(right)
+
+        if isinstance(left_cmp, list) and isinstance(right_cmp, list):
+            result = left_cmp == right_cmp
+        elif isinstance(left_cmp, list) and not isinstance(right_cmp, list):
+            result = right_cmp in left_cmp
+        elif not isinstance(left_cmp, list) and isinstance(right_cmp, list):
+            result = left_cmp in right_cmp
+        else:
+            result = left_cmp == right_cmp
+
+        return result if is_eq else not result
+
     def visitPing_stmt(self, ctx: UnibashParser.Ping_stmtContext):
         targets = self._get_targets(ctx.target())
         count = int(ctx.NUMBER(0).getText()) if ctx.COUNT() else 4
@@ -168,7 +200,14 @@ class UnibashEvaluator(UnibashParserVisitor):
         return results
 
     def visitProcess_stmt(self, ctx: UnibashParser.Process_stmtContext):
-        targets = self._get_targets(ctx.target()) if ctx.target() else []
+        implicit = getattr(self, "_implicit_target", None)
+        if ctx.target():
+            targets = self._get_targets(ctx.target())
+        elif implicit is not None:
+            targets = [implicit]
+        else:
+            targets = []
+
         action = "status"  # default
         if ctx.START():
             action = "start"
@@ -177,18 +216,25 @@ class UnibashEvaluator(UnibashParserVisitor):
         elif ctx.RESTART():
             action = "restart"
 
-        process_name = self.visit(ctx.value()) if ctx.value() else "unknown"
+        process_name = self.visit(ctx.value()) if ctx.value() else None
 
         results = []
         for t in targets:
+            proc_name = process_name
+            if proc_name is None:
+                if hasattr(t, "backend_process_name"):
+                    proc_name = t.backend_process_name()
+                else:
+                    proc_name = getattr(t, "protocol", "unknown")
+
             if action == "start":
-                res = self.executor.start(process_name, t)
+                res = self.executor.start(proc_name, t)
             elif action == "stop":
-                res = self.executor.stop(process_name, t)
+                res = self.executor.stop(proc_name, t)
             elif action == "restart":
-                res = self.executor.restart(process_name, t)
+                res = self.executor.restart(proc_name, t)
             else:
-                res = self.executor.status(process_name, t)
+                res = self.executor.status(proc_name, t)
 
             if res is not None:
                 self.executor.print(res)
@@ -247,26 +293,146 @@ class UnibashEvaluator(UnibashParserVisitor):
         return results
 
     def visitDhcp_config(self, ctx: UnibashParser.Dhcp_configContext):
-        pass
+        targets = self._get_targets(ctx.target())
+        block = ctx.dhcp_block()
+        config = {}
+
+        if block:
+            for entry in block.dhcp_entry():
+                if entry.SUBNET():
+                    config["subnet"] = self.visit(entry.value())
+                elif entry.RANGE():
+                    range_expr = entry.range_expr()
+                    if range_expr.DOTDOT():
+                        start = self.visit(range_expr.value(0))
+                        end = self.visit(range_expr.value(1))
+                        config["range"] = f"{start}..{end}"
+                    elif range_expr.list_literal():
+                        config["range"] = self.visit(range_expr.list_literal())
+                elif entry.GATEWAY():
+                    config["gateway"] = self.visit(entry.value())
+                elif entry.DNS():
+                    config["dns"] = self.visit(entry.list_literal())
+
+        results = []
+        for t in targets:
+            results.append(self.executor.configure_dhcp(config, t))
+        return results
 
     def visitDns_config(self, ctx: UnibashParser.Dns_configContext):
-        pass
+        targets = self._get_targets(ctx.target())
+        block = ctx.dns_block()
+        config = {"records": []}
+
+        if block:
+            for entry in block.dns_entry():
+                if entry.ZONE():
+                    config["zone"] = self.visit(entry.value(0))
+                elif entry.RECORD():
+                    vals = [self.visit(v) for v in entry.value()]
+                    record_type = str(vals[0]) if len(vals) > 0 else ""
+                    record_name = str(vals[1]) if len(vals) > 1 else ""
+                    record_value = str(vals[2]) if len(vals) > 2 else None
+                    config["records"].append(
+                        {
+                            "type": record_type,
+                            "name": record_name,
+                            "value": record_value,
+                        }
+                    )
+                elif entry.FORWARDERS():
+                    config["forwarders"] = self.visit(entry.list_literal())
+
+        results = []
+        for t in targets:
+            results.append(self.executor.configure_dns(config, t))
+        return results
 
     def visitIf_stmt(self, ctx: UnibashParser.If_stmtContext):
-        # Missing evaluation logic
-        pass
+        conditions = ctx.condition()
+        blocks = ctx.block()
+
+        if not blocks:
+            return None
+
+        for idx, cond in enumerate(conditions):
+            if self.visit(cond):
+                return self._eval_block(blocks[idx])
+
+        if len(blocks) > len(conditions):
+            return self._eval_block(blocks[-1])
+
+        return None
 
     def visitForeach_stmt(self, ctx: UnibashParser.Foreach_stmtContext):
-        # Missing evaluation logic
-        pass
+        var_name = ctx.IDENT().getText()
+        targets = self._get_targets(ctx.target())
+        cond_ctx = ctx.foreach_condition() if ctx.WHERE() else None
+
+        results = []
+        sentinel = object()
+        prev_value = self.context.variables.get(var_name, sentinel)
+        prev_implicit = getattr(self, "_implicit_target", None)
+
+        try:
+            for target in targets:
+                self.context.variables[var_name] = target
+                self._implicit_target = target
+
+                if cond_ctx and not self.visit(cond_ctx):
+                    continue
+
+                results.extend(self._eval_block(ctx.block()))
+        finally:
+            self._implicit_target = prev_implicit
+            if prev_value is sentinel:
+                self.context.variables.pop(var_name, None)
+            else:
+                self.context.variables[var_name] = prev_value
+
+        return results
 
     def visitOn_block(self, ctx: UnibashParser.On_blockContext):
-        # Missing evaluation logic
-        pass
+        targets = self._get_targets(ctx.target())
+        results = []
+
+        prev_target = getattr(self, "_implicit_target", None)
+        sentinel = object()
+        prev_on = self.context.variables.get("__on__", sentinel)
+        try:
+            for target in targets:
+                self._implicit_target = target
+                self.context.variables["__on__"] = target
+                results.extend(self._eval_block(ctx.block()))
+        finally:
+            self._implicit_target = prev_target
+            if prev_on is sentinel:
+                self.context.variables.pop("__on__", None)
+            else:
+                self.context.variables["__on__"] = prev_on
+
+        return results
 
     def visitVia_block(self, ctx: UnibashParser.Via_blockContext):
-        # Missing evaluation logic
-        pass
+        via_targets = self._get_targets(ctx.target())
+        results = []
+
+        prev_via = getattr(self, "_via_target", None)
+        sentinel = object()
+        prev_via_var = self.context.variables.get("__via__", sentinel)
+        try:
+            for target in via_targets:
+                self._via_target = target
+                self.context.variables["__via__"] = target
+                results.extend(self._eval_block(ctx.block()))
+        finally:
+            self._via_target = prev_via
+            if prev_via_var is sentinel:
+                self.context.variables.pop("__via__", None)
+            else:
+                self.context.variables["__via__"] = prev_via_var
+
+        return results
 
     def visitHttp_stmt(self, ctx: UnibashParser.Http_stmtContext):
         method = ctx.http_method().getText().lower()
@@ -282,6 +448,8 @@ class UnibashEvaluator(UnibashParserVisitor):
 
         if method == "get":
             result = self.executor.get(url, headers)
+        elif method == "head":
+            result = self.executor.head(url, headers)
         elif method == "post":
             result = self.executor.post(url, headers, body)
         elif method == "put":
@@ -347,10 +515,78 @@ class UnibashEvaluator(UnibashParserVisitor):
         return self.visit(ctx.string_literal())
 
     def visitCondition(self, ctx: UnibashParser.ConditionContext):
-        pass
+        left = self.visit(ctx.operand(0))
+        right = self.visit(ctx.operand(1))
+        return self._eval_condition(left, right, ctx.EQ() is not None)
+
+    def visitForeach_condition(self, ctx: UnibashParser.Foreach_conditionContext):
+        left = self.visit(ctx.foreach_operand(0))
+        right = self.visit(ctx.foreach_operand(1))
+        return self._eval_condition(left, right, ctx.EQ() is not None)
+
+    def visitForeach_operand(self, ctx: UnibashParser.Foreach_operandContext):
+        if ctx.OS():
+            target_ctx = ctx.target()
+            if target_ctx is None:
+                implicit = getattr(self, "_implicit_target", None)
+                if implicit is None:
+                    return None
+                if getattr(implicit, "os_type", None):
+                    return implicit.os_type
+                os_val = self.executor.inspect(implicit, category="os")
+                if os_val is not None:
+                    implicit.os_type = os_val
+                return os_val
+
+            targets = self._get_targets(target_ctx)
+            if not targets:
+                return None
+            os_values = []
+            for target in targets:
+                if getattr(target, "os_type", None):
+                    os_values.append(target.os_type)
+                    continue
+                os_val = self.executor.inspect(target, category="os")
+                if os_val is not None:
+                    target.os_type = os_val
+                os_values.append(os_val)
+            if len(os_values) == 1:
+                return os_values[0]
+            return os_values
+
+        return self.visit(ctx.value())
 
     def visitOperand(self, ctx: UnibashParser.OperandContext):
-        pass
+        if ctx.OS():
+            target_ctx = ctx.target()
+            if target_ctx is None:
+                implicit = getattr(self, "_implicit_target", None)
+                if implicit is None:
+                    return None
+                if getattr(implicit, "os_type", None):
+                    return implicit.os_type
+                os_val = self.executor.inspect(implicit, category="os")
+                if os_val is not None:
+                    implicit.os_type = os_val
+                return os_val
+
+            targets = self._get_targets(target_ctx)
+            if not targets:
+                return None
+            os_values = []
+            for target in targets:
+                if getattr(target, "os_type", None):
+                    os_values.append(target.os_type)
+                    continue
+                os_val = self.executor.inspect(target, category="os")
+                if os_val is not None:
+                    target.os_type = os_val
+                os_values.append(os_val)
+            if len(os_values) == 1:
+                return os_values[0]
+            return os_values
+
+        return self.visit(ctx.value())
 
     def visitTarget(self, ctx: UnibashParser.TargetContext):
-        pass
+        return ctx.IDENT().getText()

@@ -14,7 +14,6 @@ from executor.interfaces import (
 )
 from runtime.models import Host
 
-from .linux.diagnostic import LinuxNetworkDiagnosticExecutor
 from .linux.file import LinuxFileTransferExecutor
 from .linux.interactive import LinuxInteractiveExecutor
 from .linux.network import LinuxNetworkConfigExecutor
@@ -22,8 +21,9 @@ from .linux.process import LinuxProcessExecutor
 from .linux.raw import LinuxRawCommandExecutor
 from .linux.system import LinuxSystemInspectExecutor
 from .pure.console import PureConsoleExecutor
+from .pure.diagnostic import PureNetworkDiagnosticExecutor
+from .pure.file import PureFileTransferExecutor
 from .pure.http import PureHttpExecutor
-from .windows.diagnostic import WindowsNetworkDiagnosticExecutor
 from .windows.file import WindowsFileTransferExecutor
 from .windows.interactive import WindowsInteractiveExecutor
 from .windows.network import WindowsNetworkConfigExecutor
@@ -55,20 +55,20 @@ class BaseExecutor(
 
         # Detect platform and assign OS-backed executors
         if platform.system().lower() == "windows":
-            self.diagnostic = WindowsNetworkDiagnosticExecutor()
+            self.diagnostic = PureNetworkDiagnosticExecutor()
             self.interactive = WindowsInteractiveExecutor()
             self.system = WindowsSystemInspectExecutor()
             self.process = WindowsProcessExecutor()
-            self.file = WindowsFileTransferExecutor()
+            self.file = PureFileTransferExecutor()
             self.network_config = WindowsNetworkConfigExecutor()
             self.raw_command = WindowsRawCommandExecutor()
         else:
             # Default to Linux for everything else
-            self.diagnostic = LinuxNetworkDiagnosticExecutor()
+            self.diagnostic = PureNetworkDiagnosticExecutor()
             self.interactive = LinuxInteractiveExecutor()
             self.system = LinuxSystemInspectExecutor()
             self.process = LinuxProcessExecutor()
-            self.file = LinuxFileTransferExecutor()
+            self.file = PureFileTransferExecutor()
             self.network_config = LinuxNetworkConfigExecutor()
             self.raw_command = LinuxRawCommandExecutor()
 
@@ -77,35 +77,68 @@ class BaseExecutor(
     def print(self, data: Any) -> None:
         self.console.print(data)
 
-    def get(self, url: str, headers: Optional[Dict[str, str]] = None) -> Any:
-        return self.http.get(url, headers)
+    def get(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        return self.http.get(url, headers, timeout, verify, follow_redirects)
+
+    def head(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        return self.http.head(url, headers, timeout, verify, follow_redirects)
 
     def post(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
-        return self.http.post(url, headers, body)
+        return self.http.post(url, headers, body, timeout, verify, follow_redirects)
 
     def put(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
-        return self.http.put(url, headers, body)
+        return self.http.put(url, headers, body, timeout, verify, follow_redirects)
 
-    def delete(self, url: str, headers: Optional[Dict[str, str]] = None) -> Any:
-        return self.http.delete(url, headers)
+    def delete(
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
+    ) -> Any:
+        return self.http.delete(url, headers, timeout, verify, follow_redirects)
 
     def patch(
         self,
         url: str,
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
+        timeout: Optional[float] = None,
+        verify: Optional[bool] = None,
+        follow_redirects: Optional[bool] = None,
     ) -> Any:
-        return self.http.patch(url, headers, body)
+        return self.http.patch(url, headers, body, timeout, verify, follow_redirects)
 
     def ping(self, target: Host, count: int = 4, timeout: int = 5) -> Any:
         return self.diagnostic.ping(target, count, timeout)

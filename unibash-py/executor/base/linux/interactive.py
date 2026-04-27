@@ -7,7 +7,13 @@ from runtime.models import Host
 class LinuxInteractiveExecutor(IInteractiveExecutor):
     def connect(self, target: Host) -> None:
         cmd = []
-        if target.protocol == "ssh":
+        protocol = (
+            target.protocol_name()
+            if hasattr(target, "protocol_name")
+            else target.protocol
+        )
+
+        if protocol == "ssh":
             cmd = ["ssh"]
             if target.key:
                 cmd.extend(["-i", target.key])
@@ -19,13 +25,13 @@ class LinuxInteractiveExecutor(IInteractiveExecutor):
                 auth_target = f"{target.user}@{target.address}"
             cmd.append(auth_target)
 
-        elif target.protocol == "telnet":
+        elif protocol == "telnet":
             cmd = ["telnet", target.address]
             if target.port:
                 cmd.append(str(target.port))
         else:
-            print(f"Unsupported protocol: {target.protocol}")
+            print(f"Unsupported protocol: {protocol}")
             return
 
-        print(f"Connecting to {target.address} via {target.protocol}...")
+        print(f"Connecting to {target.address} via {protocol}...")
         subprocess.call(cmd)

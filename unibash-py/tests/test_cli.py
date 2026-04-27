@@ -15,7 +15,7 @@ class TestCLI(unittest.TestCase):
         self.repl.execute("set port = 8080\n")
         self.repl.execute("print port\n")
         output = mock_stdout.getvalue()
-        self.assertIn("{_NAME} PRINT: 8080", output)
+        self.assertIn("[PARROT] PRINT: 8080", output)
 
     @patch("sys.stdout", new_callable=io.StringIO)
     def test_repl_execute_host_ping(self, mock_stdout):
@@ -23,7 +23,7 @@ class TestCLI(unittest.TestCase):
         self.repl.execute('host web1 = "192.168.1.10"\n')
         self.repl.execute("ping web1\n")
         output = mock_stdout.getvalue()
-        self.assertIn("{_NAME} PING web1(192.168.1.10) | count=4 timeout=5", output)
+        self.assertIn("[PARROT] PING web1(192.168.1.10) | count=4 timeout=5", output)
 
     @patch("sys.stdout", new_callable=io.StringIO)
     def test_repl_syntax_error(self, mock_stdout):
