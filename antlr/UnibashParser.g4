@@ -104,7 +104,7 @@ inspect_category
 
 // #7. Process management
 process_stmt
-    : (RESTART | STOP | START | STATUS) (PROCESS value)? (ON target)?
+    : (RESTART | STOP | START | STATUS) (PROCESS value)? (ON target | target)?
     ;
 
 // #8. File operations
@@ -163,7 +163,16 @@ if_stmt
 
 // #13. Loops (foreach)
 foreach_stmt
-    : FOREACH IDENT IN target (WHERE condition)? block
+    : FOREACH IDENT IN target (WHERE foreach_condition)? block
+    ;
+
+foreach_condition
+    : foreach_operand (EQ | NEQ) foreach_operand
+    ;
+
+foreach_operand
+    : OS target?
+    | value
     ;
 
 // #14. Remote execution (on)
