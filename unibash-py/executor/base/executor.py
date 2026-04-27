@@ -24,6 +24,7 @@ from .pure.console import PureConsoleExecutor
 from .pure.diagnostic import PureNetworkDiagnosticExecutor
 from .pure.file import PureFileTransferExecutor
 from .pure.http import PureHttpExecutor
+from .windows.diagnostic import WindowsNetworkDiagnosticExecutor
 from .windows.file import WindowsFileTransferExecutor
 from .windows.interactive import WindowsInteractiveExecutor
 from .windows.network import WindowsNetworkConfigExecutor
@@ -55,7 +56,7 @@ class BaseExecutor(
 
         # Detect platform and assign OS-backed executors
         if platform.system().lower() == "windows":
-            self.diagnostic = PureNetworkDiagnosticExecutor()
+            self.diagnostic = WindowsNetworkDiagnosticExecutor()
             self.interactive = WindowsInteractiveExecutor()
             self.system = WindowsSystemInspectExecutor()
             self.process = WindowsProcessExecutor()

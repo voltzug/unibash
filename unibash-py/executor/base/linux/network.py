@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import shlex
 import shutil
 import subprocess
 import time
@@ -10,6 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from executor.interfaces import INetworkConfigExecutor
 from runtime.models import Host
+
+from .transport import LinuxTransport
 
 
 class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
@@ -20,6 +23,9 @@ class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
     - If target is local/loopback or protocol is "local", execute locally.
     - Otherwise no-op (returns None). Transport layer not implemented.
     """
+
+    def __init__(self, transport: Optional[LinuxTransport] = None):
+        self.transport = transport or LinuxTransport()
 
     def _protocol_name(self, target: Host) -> str:
         if hasattr(target, "protocol_name"):
@@ -48,14 +54,35 @@ class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
             raise RuntimeError(msg)
         return (result.stdout or "").strip()
 
+    def _run_shell(self, command: str, target: Host) -> str:
+        result = self.transport.run(command, target)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            stdout = (result.stdout or "").strip()
+            msg = stderr or stdout or f"Command failed: {command}"
+            raise RuntimeError(msg)
+        return (result.stdout or "").strip()
+
     def _config_root(self) -> Path:
         if os.geteuid() == 0:
             return Path("/")
         return Path("/tmp/unibash")
 
+    def _remote_config_root(self) -> Path:
+        return Path("/tmp/unibash")
+
     def _write_text(self, path: Path, content: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
+
+    def _write_text_remote(self, path: Path, content: str, target: Host) -> None:
+        marker = "UNIBASH_EOF_7f6b6a4b"
+        command = (
+            f"mkdir -p {shlex.quote(str(path.parent))} && "
+            f"cat > {shlex.quote(str(path))} <<'{marker}'\n"
+            f"{content}{marker}"
+        )
+        self._run_shell(command, target)
 
     def _restart_service(self, candidates: List[str]) -> Optional[str]:
         systemctl = shutil.which("systemctl")
@@ -180,25 +207,22 @@ class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
     # --- INetworkConfigExecutor ---
 
     def set_ip(self, ip: str, interface: str, target: Host) -> Any:
-        if not self._is_local_target(target):
-            return None
-        cmd = ["ip", "addr", "replace", ip, "dev", interface]
-        return self._run_cmd(cmd)
+        cmd = f"ip addr replace {shlex.quote(ip)} dev {shlex.quote(interface)}"
+        return self._run_shell(cmd, target)
 
     def add_ip(self, ip: str, interface: str, target: Host) -> Any:
-        if not self._is_local_target(target):
-            return None
-        cmd = ["ip", "addr", "add", ip, "dev", interface]
-        return self._run_cmd(cmd)
+        cmd = f"ip addr add {shlex.quote(ip)} dev {shlex.quote(interface)}"
+        return self._run_shell(cmd, target)
 
     def configure_dhcp(self, config_block: Dict[str, Any], target: Host) -> Any:
-        if not self._is_local_target(target):
-            return None
-
         content = self._render_dhcp_config(config_block)
-        root = self._config_root()
+        root = self._config_root() if self._is_local_target(target) else self._remote_config_root()
         dhcp_path = root / "etc" / "dhcp" / "dhcpd.conf"
-        self._write_text(dhcp_path, content)
+
+        if self._is_local_target(target):
+            self._write_text(dhcp_path, content)
+        else:
+            self._write_text_remote(dhcp_path, content, target)
 
         return {
             "config_path": str(dhcp_path),
@@ -206,9 +230,6 @@ class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
         }
 
     def configure_dns(self, config_block: Dict[str, Any], target: Host) -> Any:
-        if not self._is_local_target(target):
-            return None
-
         zone = str(config_block.get("zone", "")).strip()
         records = config_block.get("records", [])
         forwarders = config_block.get("forwarders", [])
@@ -216,7 +237,7 @@ class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
         if not zone:
             raise ValueError("DNS config requires 'zone'")
 
-        root = self._config_root()
+        root = self._config_root() if self._is_local_target(target) else self._remote_config_root()
         bind_dir = root / "etc" / "bind"
         zone_file = bind_dir / f"db.{zone}"
         named_local = bind_dir / "named.conf.local"
@@ -226,10 +247,17 @@ class LinuxNetworkConfigExecutor(INetworkConfigExecutor):
         local_content = self._render_named_local(zone, zone_file)
         options_content = self._render_named_options(forwarders)
 
-        self._write_text(zone_file, zone_content)
-        self._write_text(named_local, local_content)
+        if self._is_local_target(target):
+            self._write_text(zone_file, zone_content)
+            self._write_text(named_local, local_content)
+        else:
+            self._write_text_remote(zone_file, zone_content, target)
+            self._write_text_remote(named_local, local_content, target)
         if options_content:
-            self._write_text(named_options, options_content)
+            if self._is_local_target(target):
+                self._write_text(named_options, options_content)
+            else:
+                self._write_text_remote(named_options, options_content, target)
 
         return {
             "zone_file": str(zone_file),
