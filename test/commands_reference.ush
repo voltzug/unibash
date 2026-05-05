@@ -1,0 +1,450 @@
+# ============================================================================
+# SECTION 1: HOST DEFINITIONS
+# ============================================================================
+
+# Basic host with default SSH via port 22
+host local1 = 127.0.0.1 via ssh port 22 user "root"
+
+# Host with password authentication
+host local2 = "localhost" via ssh port 22 user "test" password "test123"
+
+# Host with key-based authentication
+host local3 = 127.0.0.1 via ssh port 2222 user "ubuntu" key "/home/user/.ssh/id_rsa"
+
+# Host with telnet protocol
+host local4 = "localhost" via telnet port 23
+
+# ============================================================================
+# SECTION 2: RANGES
+# ============================================================================
+
+# Range with IP address sequence (as string, not expanded)
+range ip_range = 127.0.0.1..127.0.0.10
+
+# Range with numeric IPs in list notation
+range host_range = ["127.0.0.1", "127.0.0.2", "127.0.0.3"]
+
+# Single IP in list
+range single_ip = ["localhost"]
+
+# ============================================================================
+# SECTION 3: GROUPS
+# ============================================================================
+
+# Group with host references
+group local_hosts = [local1, local2, local3]
+
+# Group with range reference
+group all_ips = [ip_range]
+
+# Empty group (create just for documentation)
+group empty_group = []
+
+# ============================================================================
+# SECTION 4: VARIABLES
+# ============================================================================
+
+# Numeric variable
+set timeout_seconds = 5
+
+# String variable (but in practice, values become numbers or strings)
+set backup_dir = "/tmp/backup"
+
+# Port variable
+set ssh_port = 22
+
+# Count variable
+set ping_count = 3
+
+# ============================================================================
+# SECTION 5: PING - NETWORK DIAGNOSTICS
+# ============================================================================
+
+# Ping single host (defaults: count=4, timeout=5)
+ping local1
+
+# Ping with custom count
+ping local1 count 3
+
+# Ping with custom timeout
+ping local1 timeout 2
+
+# Ping with both count and timeout
+ping local1 count 5 timeout 10
+
+# Ping with variable timeout
+ping local1 timeout timeout_seconds
+
+# Ping entire range
+ping ip_range
+
+# Ping entire group
+ping local_hosts
+
+# ============================================================================
+# SECTION 6: CONNECT - INTERACTIVE TERMINAL
+# ============================================================================
+
+# Connect to single host
+connect local1
+
+# Connect to another host
+connect local2
+
+# ============================================================================
+# SECTION 7: INSPECT - SYSTEM INFORMATION
+# ============================================================================
+
+# Inspect all categories (default)
+inspect local1
+
+# Inspect specific OS information
+inspect local1 show os
+
+# Inspect CPU information
+inspect local1 show cpu
+
+# Inspect memory information
+inspect local1 show memory
+
+# Inspect disk information
+inspect local1 show disk
+
+# Inspect network information
+inspect local1 show network
+
+# Inspect multiple hosts in a group
+inspect local_hosts show os
+
+# ============================================================================
+# SECTION 8: PROCESS MANAGEMENT
+# ============================================================================
+
+# Start a process on a host
+start process "nginx" on local1
+
+# Stop a process on a host
+stop process "apache2" on local1
+
+# Restart a process
+restart process "mysql" on local1
+
+# Check process status
+status process "sshd" on local1
+
+# Start on group
+start process "docker" on local_hosts
+
+# Process management without process name (uses default based on target)
+start on local1
+
+# ============================================================================
+# SECTION 9: FILE OPERATIONS
+# ============================================================================
+
+# Download file from remote host
+download "/var/log/syslog" from local1 to "/tmp/syslog.txt"
+
+# Download from multiple hosts
+download "/etc/hostname" from local_hosts to "/tmp/hostname.txt"
+
+# Upload file to remote host
+upload "/tmp/local_file.txt" to local1 path "/tmp/remote_file.txt"
+
+# Upload to multiple hosts
+upload "./test/simple.ush" to local_hosts path "/tmp/script.ush"
+
+# Copy file between two hosts
+copy "/var/log/auth.log" from local1 to local2 path "/tmp/auth.log"
+
+# ============================================================================
+# SECTION 10: IP CONFIGURATION
+# ============================================================================
+
+# Set IP address on interface (single host)
+set ip 192.168.100.5/24 on local1 interface "eth0"
+
+# Add additional IP address (doesn't replace existing)
+add ip 192.168.101.5/24 on local1 interface "eth0"
+
+# Configure on multiple hosts
+set ip 10.0.0.5/24 on local_hosts interface "enp0s3"
+
+# ============================================================================
+# SECTION 11: DHCP CONFIGURATION
+# ============================================================================
+
+# Configure DHCP on a host
+configure dhcp on local1 {
+  subnet "192.168.0.0/24"
+  range 100..200
+  gateway "192.168.0.1"
+  dns ["8.8.8.8", "8.8.4.4"]
+}
+
+# DHCP with only subnet
+configure dhcp on local2 {
+  subnet "10.0.0.0/24"
+  gateway "10.0.0.1"
+}
+
+# DHCP with DNS list only
+configure dhcp on local3 {
+  dns ["1.1.1.1", "1.0.0.1"]
+}
+
+# ============================================================================
+# SECTION 12: DNS CONFIGURATION
+# ============================================================================
+
+# Configure DNS on a host
+configure dns on local1 {
+  zone "example.com"
+  record "www" "A" "192.168.1.100"
+  record "mail" "A" "192.168.1.101"
+  forwarders ["8.8.8.8", "8.8.4.4"]
+}
+
+# DNS with single zone
+configure dns on local2 {
+  zone "internal.local"
+  forwarders ["1.1.1.1"]
+}
+
+# ============================================================================
+# SECTION 13: HTTP REQUESTS
+# ============================================================================
+
+# Simple GET request
+http get "http://httpbin.org/get"
+
+# GET request with custom headers
+http get "http://httpbin.org/headers" {
+  header "User-Agent" "Unibash/1.0"
+  header "Accept" "application/json"
+}
+
+# GET request and save response to file
+http get "http://httpbin.org/json" save "/tmp/response.json"
+
+# POST request with headers and body
+http post "http://httpbin.org/post" {
+  header "Content-Type" "application/json"
+  body "{\"key\": \"value\", \"test\": true}"
+}
+
+# PUT request
+http put "http://httpbin.org/put" {
+  header "Content-Type" "application/json"
+  body "{\"update\": \"data\"}"
+}
+
+# DELETE request
+http delete "http://httpbin.org/delete" {
+  header "Authorization" "Bearer token123"
+}
+
+# PATCH request
+http patch "http://httpbin.org/patch" {
+  header "Content-Type" "application/json"
+  body "{\"partial\": \"update\"}"
+}
+
+# HEAD request
+http head "http://httpbin.org/status/200"
+
+# ============================================================================
+# SECTION 14: EXECUTE COMMANDS
+# ============================================================================
+
+# Execute single command on a host
+exec on local1 "uname -a"
+
+# Execute multiple commands in a block
+exec on local1 {
+  "echo 'Starting backup...'"
+  "tar -czf /tmp/backup.tar.gz /home"
+  "echo 'Backup complete'"
+}
+
+# Execute on multiple hosts
+exec on local_hosts "whoami"
+
+# ============================================================================
+# SECTION 15: CONTROL FLOW - IF/ELSE
+# ============================================================================
+
+# Simple if statement
+if os local1 == "linux" {
+  ping local1
+}
+
+# If/else statement
+if os local1 == "windows" {
+  exec on local1 "powershell -Command Get-ComputerInfo"
+} else {
+  exec on local1 "uname -a"
+}
+
+# If/else if/else chain
+if os local1 == "windows" {
+  inspect local1 show os
+} else if os local1 == "darwin" {
+  ping local1
+} else {
+  exec on local1 "lsb_release -a"
+}
+
+# Condition with != (not equal)
+if os local2 != "windows" {
+  start process "sshd" on local2
+}
+
+# ============================================================================
+# SECTION 16: LOOPS - FOREACH
+# ============================================================================
+
+# Simple foreach on group
+foreach h in local_hosts {
+  ping h
+}
+
+# Foreach with WHERE condition (filter by OS)
+foreach h in local_hosts where os h == "linux" {
+  exec on h "apt update && apt upgrade -y"
+}
+
+# Foreach with nested commands
+foreach server in local_hosts where os server == "linux" {
+  inspect server show cpu
+  inspect server show memory
+  ping server count 5
+}
+
+# Foreach on range
+foreach ip in ip_range {
+  ping ip
+}
+
+# ============================================================================
+# SECTION 17: ON BLOCK - IMPLICIT TARGET
+# ============================================================================
+
+# Execute multiple commands on implicit target
+on local1 {
+  ping local1
+  inspect local1 show os
+  exec on local1 "whoami"
+}
+
+# Conditional ON block
+if os local1 == "linux" {
+  on local1 {
+    exec on local1 "echo 'I am Linux'"
+    start process "apache2" on local1
+  }
+}
+
+# ============================================================================
+# SECTION 18: VIA BLOCK - BASTION/JUMP HOST
+# ============================================================================
+
+# Via block: execute commands through another host (bastion pattern)
+via local1 run {
+  ping local2
+  exec on local2 "date"
+}
+
+# Via with file operations
+via local1 run {
+  download "/etc/hosts" from local2 to "/tmp/hosts"
+}
+
+# Nested via blocks
+via local1 run {
+  ping local2
+  via local2 run {
+    ping local3
+  }
+}
+
+# ============================================================================
+# SECTION 19: PRINT STATEMENTS
+# ============================================================================
+
+# Print simple text
+print "All tests completed!"
+
+# Print multiple values
+print "Host:" local1 "Ready"
+
+# Print result of inspect
+print inspect local1 show os
+
+# Print in conditional
+if os local1 == "linux" {
+  print "Linux host detected"
+}
+
+# ============================================================================
+# SECTION 20: COMBINED EXAMPLES - REAL-WORLD SCENARIOS
+# ============================================================================
+
+# Scenario 1: System health check on all hosts
+set health_check_timeout = 10
+foreach host in local_hosts {
+  print "=== Checking" host "==="
+  ping host timeout health_check_timeout
+  inspect host show os
+  inspect host show cpu
+  inspect host show memory
+}
+
+# Scenario 2: Deploy with validation
+host deploy_target = "localhost" via ssh port 22 user "deployer" key "/keys/deploy_key"
+
+print "Starting deployment..."
+ping deploy_target
+upload "./app/bundle.tar.gz" to deploy_target path "/tmp/bundle.tar.gz"
+exec on deploy_target {
+  "cd /tmp"
+  "tar -xzf bundle.tar.gz"
+  "cd app"
+  "./install.sh"
+}
+print "Deployment complete!"
+
+# Scenario 3: Multi-host configuration
+set config_timeout = 15
+set dns_server_1 = "8.8.8.8"
+
+foreach server in local_hosts where os server == "linux" {
+  print "Configuring" server
+  set ip 10.0.0.1/24 on server interface "eth0"
+  configure dns on server {
+    zone "company.local"
+    forwarders [dns_server_1]
+  }
+  print "Configuration complete for" server
+}
+
+# Scenario 4: Log collection and analysis
+group log_servers = [local1, local2, local3]
+
+foreach srv in log_servers {
+  print "Collecting logs from" srv
+  download "/var/log/syslog" from srv to "/tmp/logs/syslog_${srv}.txt"
+  download "/var/log/auth.log" from srv to "/tmp/logs/auth_${srv}.txt"
+}
+
+# Scenario 5: Health check with remediation
+foreach h in local_hosts {
+  if os h == "linux" {
+    print "Checking service on" h
+    status process "nginx" on h
+    if os h == "linux" {
+      exec on h "systemctl restart nginx"
+    }
+  }
+}
+
